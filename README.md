@@ -122,3 +122,8 @@ Every test involves verification of all 24 DICOM series.
         -   Validation 5 applied to spherical coordinates.
             (with conversion to "real" / "scanner" space via *MRtrix3*)
 
+-----
+
+RS ([@Lestropie](https://github.com/Lestropie)) is a fellow of the National Imaging Facility,
+a National Collaborative Research Infrastructure Strategy (NCRIS) capability,
+at the Florey Institute of Neuroscience and Mental Health.

@@ -642,16 +642,16 @@ def main():
     verify_metadata('dcm2niix', dcm2niixdir, ('nii', 'json'))
     
     # Evaluate MRtrix conversion from DICOM to various formats
-    for extensions_intermediate in EXTENSIONS:
-        for reorient_intermediate in (False, True):
-            outdir = op.join(scratchdir, f'mrconvert_dcm2{"".join(extensions_intermediate)}{reorient_intermediate}')
+    for extensions in EXTENSIONS:
+        for reorient in (False, True):
+            outdir = op.join(scratchdir, f'mrconvert_dcm2{"".join(extensions)}{reorient}')
             run_mrconvert_from_dicom(dicomdir,
                                      outdir,
-                                     extensions_intermediate,
-                                     reorient_intermediate)
-            verify_metadata(f'mrconvert: DICOM to {",".join(extensions_intermediate)} {"with" if reorient_intermediate else "without"} reorientation',
+                                     extensions,
+                                     reorient)
+            verify_metadata(f'mrconvert: DICOM to {",".join(extensions)} {"with" if reorient else "without"} reorientation',
                             outdir,
-                            extensions_intermediate)
+                            extensions)
     
     # To better separate potential issues between MRtrix3 read and MRtrix3 write,
     #   evaluate conversions from dcm2niix to different formats with different strides

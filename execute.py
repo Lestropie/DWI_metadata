@@ -311,6 +311,7 @@ def run_bedpostx(indir, maskdir, bedpostxdir):
         os.symlink(op.join(indir, f'{v}.bval'), op.join(bedpostx_tmpdir, 'bvals'))
         os.symlink(op.join(maskdir, f'{v}.nii'), op.join(bedpostx_tmpdir, 'nodif_brain_mask.nii'))
         subprocess.run(['bedpostx', bedpostx_tmpdir] + BEDPOSTX_OPTIONS,
+                       capture_output=True,
                        check=True)
         for item in glob.glob(op.join(bedpostxdir, '*merged*')):
             os.remove(item)

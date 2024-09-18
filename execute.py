@@ -14,10 +14,6 @@ import sys
 
 from collections import namedtuple
 logger = logging.getLogger(__name__)
-logging.basicConfig(format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
-                    level=logging.INFO,
-                    filename="log.log",
-                    filemode="w")
 
 
 
@@ -103,7 +99,7 @@ def code2direction(string, transform):
         for axis in range(0, 3):
             direction_anatomical[index] += direction_imagespace[axis] * row[axis]
     return direction_anatomical
-    
+
 
 
 def get_transform(image_path):
@@ -113,10 +109,15 @@ def get_transform(image_path):
                                 capture_output=True,
                                 text=True).stdout
     if not transform:
-        raise FileNotFoundError(f'No transform read for "{image_path}"')
-    transform = [[int(round(float(f))) for f in line.split()] for line in transform.splitlines()]
+        if op.exists(image_path):
+            raise ValueError(f'Unable to read transform from "{image_path}"')
+        raise FileNotFoundError(f'No transform read for "{image_path}" as file does not exist')
+    try:
+        transform = [[int(round(float(f))) for f in line.split()] for line in transform.splitlines()]
+    except ValueError as exc:
+        raise ValueError(f'Error interpreting transform from image "{image_path}"') from exc
     return transform
-    
+
 
 
 # Generate set of all possible configurations
@@ -142,10 +143,17 @@ for v in variants:
 
 def wipe_output_directory(dirpath):
     try:
-        shutil.rmtree(dirpath)
-    except OSError:
+        for root, dirs, files in os.walk(dirpath):
+            for f in files:
+                os.unlink(os.path.join(root, f))
+            for d in dirs:
+                shutil.rmtree(os.path.join(root, d))
+    except FileNotFoundError:
         pass
-    os.makedirs(dirpath)
+    try:
+        os.makedirs(dirpath)
+    except FileExistsError:
+        pass
 
 
 
@@ -177,7 +185,7 @@ def run_mrconvert_from_dicom(indir, outdir, extensions, reorient):
         pass
     os.makedirs(outdir)
     logger.info(f'Running {len(variants)} instances of mrconvert from DICOM:')
-    logger.info(f'  File extensions {",".join(extensions)}, reorient {reorient}') 
+    logger.info(f'  File extensions {",".join(extensions)}, reorient {reorient}')
     for v in variants:
         cmd = ['mrconvert',
                op.join(indir, f'{v}/'),
@@ -240,7 +248,7 @@ def run_dwi2mask(indir, outdir, outpath):
     mrmath_cmd = ['mrmath']
     for v in variants:
         out_path = op.join(outdir, f'{v}.mif')
-        subprocess.run(['dwi2mask', 'legacy', op.join(indir, f'{v}/'), out_path,
+        subprocess.run(['dwi2mask', op.join(indir, f'{v}/'), out_path,
                         '-config', 'RealignTransform', 'true',
                         '-quiet'],
                        check=True)
@@ -250,7 +258,7 @@ def run_dwi2mask(indir, outdir, outpath):
     logger.info(f'dwi2mask results aggregated as {outpath}')
     for v in variants:
         os.remove(op.join(outdir, f'{v}.mif'))
-    
+
 
 
 def convert_mask(indir, in_extension, maskpath, outdir, out_extension):
@@ -281,7 +289,7 @@ def convert_mask(indir, in_extension, maskpath, outdir, out_extension):
                         '-quiet'],
                        check=True)
 
-    
+
 
 def run_bedpostx(indir, maskdir, bedpostxdir):
     try:
@@ -454,14 +462,14 @@ def run_bedpostx_to_mrtrix(bedpostxdir, conversiondir, use_dyads):
                             '-quiet'],
                            check=True)
             os.remove(tmppath)
-        
-                        
-                        
-                        
-                        
-                        
-                        
-               
+
+
+
+
+
+
+
+
 MetadataMismatch = namedtuple('MetadataMismatch', 'variant metadata_code metadata_reversal metadata_direction description_code description_reversal description_direction transform')
 
 def verify_metadata(testname, inputdir, file_extensions):
@@ -506,7 +514,7 @@ def verify_metadata(testname, inputdir, file_extensions):
             bvecs = None
             if 'mih' in file_extensions:
                 dw_scheme = [ [float(f) for f in line.split(',')] for line in metadata['dw_scheme'] ]
-        
+
         # Slice encoding direction not explicitly labelled in dcm2niix JSON;
         #   therefore if absent we'll have to assume "k"
         if 'SliceEncodingDirection' not in metadata:
@@ -514,15 +522,14 @@ def verify_metadata(testname, inputdir, file_extensions):
                 metadata['SliceEncodingDirection'] = 'k'
             else:
                 raise KeyError('"SliceEncodingDirection" missing from ' + op.join(inputdir, f'{v}'))
-        
         sliceencodingdirection_metadata = code2direction(metadata['SliceEncodingDirection'], transform)
         if slicetimingreversal_metadata:
             sliceencodingdirection_metadata = [-i if i else 0 for i in sliceencodingdirection_metadata]
         phaseencodingdirection_metadata = code2direction(metadata['PhaseEncodingDirection'], transform)
-        
+
         sliceencodingdirection_seriesdescription = [i * SLICEORDERS[v.sliceorder] for i in PLANES[v.plane]]
         phaseencodingdirection_seriesdescription = PEDIRS[v.pedir]
-        
+
         if sliceencodingdirection_metadata != sliceencodingdirection_seriesdescription:
             sliceencodingdirection_errors.append(MetadataMismatch(f'{v}',
                                                           metadata['SliceEncodingDirection'],
@@ -541,7 +548,7 @@ def verify_metadata(testname, inputdir, file_extensions):
                                                           False,
                                                           phaseencodingdirection_seriesdescription,
                                                           transform))
-        
+
         if dw_scheme:
             fiducials = np.array([[int(round(f)) for f in dw_scheme[row][0:3]] for row in range(1, 4)])
             if not np.array_equal(fiducials, GRADTABLE_FIDUCIALS):
@@ -575,7 +582,7 @@ def verify_metadata(testname, inputdir, file_extensions):
             logger.debug('    Realspace fiducials: ' + str(fiducials_real.round()))
             if not np.array_equal(fiducials_real.round(), GRADTABLE_FIDUCIALS):
                 gradtable_errors.append([f'{v}', fiducials_real])
-    
+
     logger.info(f'Results for {testname}:')
     if sliceencodingdirection_errors:
         logger.warning(f'{len(sliceencodingdirection_errors)} errors in slice encoding direction for {testname}:')
@@ -595,37 +602,43 @@ def verify_metadata(testname, inputdir, file_extensions):
             if np.array_equal(mismatch[1].round() * -1, GRADTABLE_FIDUCIALS):
                 logger.warning(f'  {mismatch[0]}: ANTIPODAL')
             else:
-                logger.warning(f'  {mismatch[0]}: {mismatch[1]}')
+                logger.warning(f'  {mismatch[0]}: [{" ".join(str(line) for line in mismatch[1])}]')
     else:
         logger.info('No gradient table errors')
     return
 
-                        
-                        
-                        
-                        
-                        
-                        
+
+
+
+
+
+
 def verify_peaks(testname, inputdir):
     errors = []
     logger.info(f'Verifying peak orientations for {testname}')
-    for v in variants:            
+    for v in variants:
         logger.debug(f'  Variant {v}')
         proc = subprocess.run(['peakscheck', op.join(inputdir, f'{v}.mif'), '-quiet'])
         if proc.returncode != 0:
             errors.append(f'{v}')
     if errors:
         logger.warning(f'{len(errors)} potential errors in fibre orientations for {testname}: {errors}')
-        
-                        
-                        
-                        
-                        
-                        
+
+
+
+
+
+
 
 def main():
+
+    if len(sys.argv) != 4:
+        sys.stderr.write('Usage: execute.py <DICOM_directory> <Scratch_directory> <log_file>\n')
+        sys.exit(1)
+
     dicomdir = sys.argv[1]
     scratchdir = sys.argv[2]
+    logfile = sys.argv[3]
 
     if not op.isdir(dicomdir):
         sys.stderr.write('Expect first argument to be input directory')
@@ -636,11 +649,20 @@ def main():
         os.makedirs(scratchdir)
     except FileExistsError:
         pass
-    
+
+    logging.basicConfig(format='%(asctime)s,%(msecs)03d %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
+                        level=logging.INFO,
+                        filename=logfile,
+                        filemode="w")
+    console = logging.StreamHandler()
+    console.setLevel(logging.WARN)
+    logger.addHandler(console)
+
+    # Evaluate dcm2niix
     dcm2niixdir = op.join(scratchdir, 'dcm2niix')
     run_dcm2niix(dicomdir, os.path.abspath(dcm2niixdir))
     verify_metadata('dcm2niix', dcm2niixdir, ('nii', 'json'))
-    
+
     # Evaluate MRtrix conversion from DICOM to various formats
     for extensions in EXTENSIONS:
         for reorient in (False, True):
@@ -652,7 +674,7 @@ def main():
             verify_metadata(f'mrconvert: DICOM to {",".join(extensions)} {"with" if reorient else "without"} reorientation',
                             outdir,
                             extensions)
-    
+
     # To better separate potential issues between MRtrix3 read and MRtrix3 write,
     #   evaluate conversions from dcm2niix to different formats with different strides
     for extensions in EXTENSIONS:
@@ -669,7 +691,7 @@ def main():
                                 outdir,
                                 extensions)
                 shutil.rmtree(outdir)
-    
+
     # Now take files that have been converted by MRtrix3 from DICOM to some format,
     #   and import them and write them as another format
     for extensions_intermediate in EXTENSIONS:
@@ -689,11 +711,11 @@ def main():
                                         outdir,
                                         extensions_out)
                         shutil.rmtree(outdir)
-                                            
-               
-                          
+
+
+
     # Generate a single brain mask
-    #   that will be used for processing of all datasets    
+    #   that will be used for processing of all datasets
     dwi2maskdir = op.join(scratchdir, 'dwi2mask')
     maskpath = op.join(scratchdir, 'mask.nii')
     run_dwi2mask(dicomdir, dwi2maskdir, maskpath) 
@@ -701,9 +723,9 @@ def main():
     for extensions in EXTENSIONS:
         for reorient in (False, True):
             version_string = f'dcm2{"".join(extensions)}{reorient}'
-            mrtrixdir = op.join(scratchdir, f'mrconvert_{version_string}')    
+            mrtrixdir = op.join(scratchdir, f'mrconvert_{version_string}')
             convert_mask(mrtrixdir, extensions[0], maskpath, op.join(scratchdir, f'mask_mrconvert_{version_string}'), extensions[0])
-    
+
     # Run tensor fits using both MRtrix3 and FSL
     dwi2tensordir = op.join(scratchdir, 'dwi2tensor_from_dcm2niix')
     maskdir = op.join(scratchdir, 'mask_dcm2niix')
@@ -724,10 +746,10 @@ def main():
         maskdir = op.join(scratchdir, f'mask_mrconvert_dcm2niijsonbvecbval{reorient}')
         dtifitdir = op.join(scratchdir, f'dtifit_from_mrconvert{reorient}')
         run_dtifit(mrconvertdir, maskdir, dtifitdir)
-    
+
     # TODO Use peakscheck on MRtrix tensor estimates?
     # We already know those are using our own convention...
-    
+
     # Evaluate dtifit outputs
     # If our interpretation of the vector orientations provided by FSL dtifit is correct,
     #   then we should be able to transform them to scanner space,
@@ -741,7 +763,7 @@ def main():
         conversiondir = op.join(scratchdir, f'dtifit_mrconvert{reorient}_to_scannerspace')
         run_dtifit_to_mrtrix(dtifitdir, conversiondir)
         verify_peaks(f'FSL dtifit from mrconvert data {"with" if reorient else "without"} reorientation', conversiondir)
-    
+
     # Run bedpostx
     # Need to run on data generated from both dcm2niix and MRtrix3
     bedpostxdir = op.join(scratchdir, 'bedpostx_from_dcm2niix')
@@ -752,7 +774,7 @@ def main():
         maskdir = op.join(scratchdir, f'mask_mrconvert_dcm2niijsonbvecbval{reorient}')
         bedpostxdir = op.join(scratchdir, f'bedpostx_from_mrconvert{reorient}')
         run_bedpostx(mrtrixdir, maskdir, bedpostxdir)
-    
+
     # Evaluate bedpostx outputs
     # Note that fsleyes labels "L-R-A-P-S-I" do *not* correspond to anatomical orientations;
     #   they seemingly correspond rather to i, i-, j, j-, k, k-
@@ -772,9 +794,9 @@ def main():
         conversiondir = op.join(scratchdir, f'bedpostx_mrconvert{reorient}_dyads2peaks')
         run_bedpostx_to_mrtrix(bedpostxdir, conversiondir, True)
         verify_peaks(f'bedpostx from mrconvert {"with" if reorient else "without"} reorientation; 3-vectors', conversiondir)
-    
-    
-    
+
+
+
 
 
 if __name__ == '__main__':

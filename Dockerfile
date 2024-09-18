@@ -123,6 +123,7 @@ RUN apt-get -qq update \
         libquadmath0 \
         python3-distutils \
         python3-numpy \
+        python3-tqdm \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=mrtrix3-eval-builder /opt/mrtrix3 /opt/mrtrix3

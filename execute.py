@@ -2,6 +2,7 @@
 
 import copy
 import glob
+import itertools
 import json
 import logging
 import numpy as np
@@ -10,9 +11,10 @@ import os.path as op
 import shutil
 import subprocess
 import sys
-
+from tqdm import tqdm
 
 from collections import namedtuple
+
 logger = logging.getLogger(__name__)
 
 
@@ -167,7 +169,7 @@ def run_dcm2niix(indir, outdir):
     os.makedirs(outdir)
     os.chdir(indir)
     logger.info(f'Running {len(variants)} instances of dcm2niix')
-    for v in variants:
+    for v in tqdm(variants, desc='Running dcm2niix'):
         subprocess.run(['dcm2niix',
                         '-o', outdir,
                         '-f', '%f',
@@ -184,9 +186,8 @@ def run_mrconvert_from_dicom(indir, outdir, extensions, reorient):
     except OSError:
         pass
     os.makedirs(outdir)
-    logger.info(f'Running {len(variants)} instances of mrconvert from DICOM:')
-    logger.info(f'  File extensions {",".join(extensions)}, reorient {reorient}')
-    for v in variants:
+    logger.info(f'Running {len(variants)} instances of mrconvert from DICOM: File extensions {",".join(extensions)}, reorient {reorient}')
+    for v in tqdm(variants, desc=f'Running MRtrix3 mrconvert: DICOM -> {",".join(extensions)}, {"with" if reorient else "without"} reorientation'):
         cmd = ['mrconvert',
                op.join(indir, f'{v}/'),
                op.join(outdir, f'{v}.{extensions[0]}'),
@@ -214,7 +215,7 @@ def run_mrconvert_from_intermediate(indir,
     logger.info(f'Running {len(variants)} instances of mrconvert from intermediate input:')
     logger.info(f'  Input {indir}, input file extensions {",".join(extensions_in)};')
     logger.info(f'  Output file extensions {",".join(extensions_out)}, reorient {reorient}, strides {strides_option}')
-    for v in variants:
+    for v in tqdm(variants, desc=f'Running MRtrix3 mrconvert: {indir} {",".join(extensions_in)} -> {",".join(extensions_out)}, {"with" if reorient else "without"} reorientation, strides {strides_option}'):
         cmd = ['mrconvert',
                op.join(indir, f'{v}.{extensions_in[0]}'),
                op.join(outdir, f'{v}.{extensions_out[0]}'),
@@ -246,7 +247,7 @@ def run_dwi2mask(indir, outdir, outpath):
     os.makedirs(outdir)
     logger.info(f'Running {len(variants)} instances of dwi2mask')
     mrmath_cmd = ['mrmath']
-    for v in variants:
+    for v in tqdm(variants, desc='Generating homologated brain mask'):
         out_path = op.join(outdir, f'{v}.mif')
         subprocess.run(['dwi2mask', op.join(indir, f'{v}/'), out_path,
                         '-config', 'RealignTransform', 'true',
@@ -271,7 +272,7 @@ def convert_mask(indir, in_extension, maskpath, outdir, out_extension):
     # This is not fixed per variant; it depends on the image to which the mask is to be matched,
     #   and this could depend on the conversion software / whether or not MRtrix3 performed transform realignment
     logger.info(f'Converting aggregate mask to match {indir}')
-    for v in variants:
+    for v in tqdm(variants, desc='Back-propagating homologated brain mask'):
         inpath = op.join(indir, f'{v}.{in_extension}')
         outpath = op.join(outdir, f'{v}.{out_extension}')
         if not op.exists(inpath):
@@ -302,7 +303,7 @@ def run_bedpostx(indir, maskdir, bedpostxdir):
     cwd = os.getcwd()
     logger.info(f'Running {len(variants)} instances of bedpostx from input {indir}')
     os.chdir(bedpostxdir)
-    for v in variants:
+    for v in tqdm(variants, desc=f'Running FSL bedpostx on input {indir}'):
         bedpostx_tmpdir = f'{v}/'
         os.makedirs(bedpostx_tmpdir)
         os.symlink(op.join(indir, f'{v}.nii'), op.join(bedpostx_tmpdir, 'data.nii'))
@@ -324,7 +325,7 @@ def run_dwi2tensor(indir, extensions, maskdir, dwi2tensordir):
         pass
     os.makedirs(dwi2tensordir)
     logger.info(f'Running {len(variants)} instances of dwi2tensor from input {indir}')
-    for v in variants:
+    for v in tqdm(variants, desc=f'Running MRtrix3 dwi2tensor on {indir}'):
         tensor_image_path = op.join(dwi2tensordir, f'{v}_tensor.{extensions[0]}')
         mask_path = op.join(maskdir, f'{v}.{extensions[0]}')
         subprocess.run(['dwi2tensor', op.join(indir, f'{v}.{extensions[0]}'), tensor_image_path,
@@ -349,7 +350,7 @@ def run_dtifit(indir, maskdir, dtifitdir):
         pass
     os.makedirs(dtifitdir)
     logger.info(f'Running {len(variants)} instances of dtifit from input {indir}')
-    for v in variants:
+    for v in tqdm(variants, desc=f'Running FSL dtifit on {indir}'):
         subprocess.run(['dtifit',
                         '-k', op.join(indir, f'{v}.nii'),
                         '-o', op.join(dtifitdir, f'{v}'),
@@ -380,7 +381,7 @@ def run_dtifit_to_mrtrix(dtifitdir, conversiondir):
         pass
     os.makedirs(conversiondir)
     logger.info(f'Converting {dtifitdir} to MRtrix3 format')
-    for v in variants:
+    for v in tqdm(variants, desc=f'Converting FSL {dtifitdir} to MRtrix3 format'):
         subprocess.run(['peaksconvert',
                         op.join(dtifitdir, f'{v}.nii'),
                         op.join(conversiondir, f'{v}.mif'),
@@ -400,7 +401,7 @@ def run_bedpostx_to_mrtrix(bedpostxdir, conversiondir, use_dyads):
         pass
     os.makedirs(conversiondir)
     logger.info(f'Converting {bedpostxdir} to MRtrix3 format')
-    for v in variants:
+    for v in tqdm(variants, desc=f'Converting FSL {bedpostxdir} to MRtrix3 format'):
         bedpostx_subdir = os.path.join(bedpostxdir, f'{v}.bedpostX')
         tmppath = op.join(conversiondir, 'tmp.mif')
         if use_dyads:
@@ -477,7 +478,7 @@ def verify_metadata(testname, inputdir, file_extensions):
     phaseencodingdirection_errors = []
     gradtable_errors = []
     logger.debug(f'Verifying metadata for {testname}:')
-    for v in variants:
+    for v in tqdm(variants, desc=f'Verifying metadata for {testname}'):
         logger.debug(f'  Variant {v}:')
         if 'json' in file_extensions:
             with open(op.join(inputdir, f'{v}.json'), 'r') as f:
@@ -616,9 +617,9 @@ def verify_metadata(testname, inputdir, file_extensions):
 def verify_peaks(testname, inputdir):
     errors = []
     logger.info(f'Verifying peak orientations for {testname}')
-    for v in variants:
+    for v in tqdm(variants, desc=f'Verifying peak orientations for {testname}'):
         logger.debug(f'  Variant {v}')
-        proc = subprocess.run(['peakscheck', op.join(inputdir, f'{v}.mif'), '-quiet'])
+        proc = subprocess.run(['peakscheck', op.join(inputdir, f'{v}.mif'), '-quiet'], capture_output=True)
         if proc.returncode != 0:
             errors.append(f'{v}')
     if errors:
@@ -664,53 +665,52 @@ def main():
     verify_metadata('dcm2niix', dcm2niixdir, ('nii', 'json'))
 
     # Evaluate MRtrix conversion from DICOM to various formats
-    for extensions in EXTENSIONS:
-        for reorient in (False, True):
-            outdir = op.join(scratchdir, f'mrconvert_dcm2{"".join(extensions)}{reorient}')
-            run_mrconvert_from_dicom(dicomdir,
-                                     outdir,
-                                     extensions,
-                                     reorient)
-            verify_metadata(f'mrconvert: DICOM to {",".join(extensions)} {"with" if reorient else "without"} reorientation',
-                            outdir,
-                            extensions)
+    for extensions, reorient in tqdm(itertools.product(EXTENSIONS, (False, True)), 
+                                     desc='Evaluating MRtrix3 mrconvert from DICOM',
+                                     total=len(EXTENSIONS)*2):
+        outdir = op.join(scratchdir, f'mrconvert_dcm2{"".join(extensions)}{reorient}')
+        run_mrconvert_from_dicom(dicomdir,
+                                 outdir,
+                                 extensions,
+                                 reorient)
+        verify_metadata(f'mrconvert: DICOM to {",".join(extensions)} {"with" if reorient else "without"} reorientation',
+                        outdir,
+                        extensions)
 
     # To better separate potential issues between MRtrix3 read and MRtrix3 write,
     #   evaluate conversions from dcm2niix to different formats with different strides
-    for extensions in EXTENSIONS:
-        for reorient in (False, True):
-            for strides_name, strides_option in STRIDES.items():
-                outdir = op.join(scratchdir, f'dcm2niix2{"".join(extensions)}{reorient}{strides_name}')
-                run_mrconvert_from_intermediate(dcm2niixdir,
-                                                outdir,
-                                                ['nii', 'json', 'bvec', 'bval'],
-                                                extensions,
-                                                reorient,
-                                                strides_option)
-                verify_metadata(f'dcm2niix to {",".join(extensions)} {"with" if reorient else "without"} reorientation & {strides_name} strides',
-                                outdir,
-                                extensions)
-                shutil.rmtree(outdir)
+    for extensions, reorient, (strides_name, strides_option) in tqdm(itertools.product(EXTENSIONS, (False, True), STRIDES.items()),
+                                                                     desc='Evaluating MRtrix3 mrconvert from dcm2niix',
+                                                                     total=len(EXTENSIONS)*2*len(STRIDES)):
+        outdir = op.join(scratchdir, f'dcm2niix2{"".join(extensions)}{reorient}{strides_name}')
+        run_mrconvert_from_intermediate(dcm2niixdir,
+                                        outdir,
+                                        ['nii', 'json', 'bvec', 'bval'],
+                                        extensions,
+                                        reorient,
+                                        strides_option)
+        verify_metadata(f'mrconvert: dcm2niix to {",".join(extensions)} {"with" if reorient else "without"} reorientation & {strides_name} strides',
+                        outdir,
+                        extensions)
+        shutil.rmtree(outdir)
 
     # Now take files that have been converted by MRtrix3 from DICOM to some format,
     #   and import them and write them as another format
-    for extensions_intermediate in EXTENSIONS:
-        for reorient_intermediate in (False, True):
-            intermediatedir = op.join(scratchdir, f'mrconvert_dcm2{"".join(extensions_intermediate)}{reorient_intermediate}')
-            for extensions_out in EXTENSIONS:
-                for reorient_out in (False, True):
-                    for strides_name, strides_option in STRIDES.items():
-                        outdir = op.join(scratchdir, f'mrconvert_{"".join(extensions_intermediate)}{reorient_intermediate}2{"".join(extensions_out)}{reorient_out}{strides_name}')
-                        run_mrconvert_from_intermediate(intermediatedir,
-                                                        outdir,
-                                                        extensions_intermediate,
-                                                        extensions_out,
-                                                        reorient_out,
-                                                        strides_option)
-                        verify_metadata(f'mrconvert: {",".join(extensions_intermediate)} {"with" if reorient_intermediate else "without"} reorientation to {",".join(extensions_out)} {"with" if reorient_out else "without"} reorientation & {strides_name} strides',
+    for extensions_intermediate, reorient_intermediate, extensions_out, reorient_out, (strides_name, strides_option) in tqdm(itertools.product(EXTENSIONS, (False, True), EXTENSIONS, (False, True), STRIDES.items()),
+                                                                                                                             desc='Evaluating MRtrix3 mrconvert from multiple formats with stride manipulation', 
+                                                                                                                             total=len(EXTENSIONS)*2*len(EXTENSIONS)*2*len(STRIDES)):
+        intermediatedir = op.join(scratchdir, f'mrconvert_dcm2{"".join(extensions_intermediate)}{reorient_intermediate}')
+        outdir = op.join(scratchdir, f'mrconvert_{"".join(extensions_intermediate)}{reorient_intermediate}2{"".join(extensions_out)}{reorient_out}{strides_name}')
+        run_mrconvert_from_intermediate(intermediatedir,
                                         outdir,
-                                        extensions_out)
-                        shutil.rmtree(outdir)
+                                        extensions_intermediate,
+                                        extensions_out,
+                                        reorient_out,
+                                        strides_option)
+        verify_metadata(f'mrconvert: {",".join(extensions_intermediate)} {"with" if reorient_intermediate else "without"} reorientation to {",".join(extensions_out)} {"with" if reorient_out else "without"} reorientation & {strides_name} strides',
+                        outdir,
+                        extensions_out)
+        shutil.rmtree(outdir)
 
 
 
@@ -720,28 +720,32 @@ def main():
     maskpath = op.join(scratchdir, 'mask.nii')
     run_dwi2mask(dicomdir, dwi2maskdir, maskpath) 
     convert_mask(dcm2niixdir, 'nii', maskpath, op.join(scratchdir, 'mask_dcm2niix'), 'nii')
-    for extensions in EXTENSIONS:
-        for reorient in (False, True):
-            version_string = f'dcm2{"".join(extensions)}{reorient}'
-            mrtrixdir = op.join(scratchdir, f'mrconvert_{version_string}')
-            convert_mask(mrtrixdir, extensions[0], maskpath, op.join(scratchdir, f'mask_mrconvert_{version_string}'), extensions[0])
+    for extensions, reorient in tqdm(itertools.product(EXTENSIONS, (False, True)),
+                                     desc='Converting homologated brain mask to different formats',
+                                     total=len(EXTENSIONS)*2):
+        version_string = f'dcm2{"".join(extensions)}{reorient}'
+        mrtrixdir = op.join(scratchdir, f'mrconvert_{version_string}')
+        convert_mask(mrtrixdir, extensions[0], maskpath, op.join(scratchdir, f'mask_mrconvert_{version_string}'), extensions[0])
 
     # Run tensor fits using both MRtrix3 and FSL
     dwi2tensordir = op.join(scratchdir, 'dwi2tensor_from_dcm2niix')
     maskdir = op.join(scratchdir, 'mask_dcm2niix')
     run_dwi2tensor(dcm2niixdir, ['nii', 'json'], maskdir, dwi2tensordir)
-    for extensions in EXTENSIONS:
-        for reorient in (False, True):
-            version_string = f'dcm2{"".join(extensions)}{reorient}'
-            mrconvertdir = op.join(scratchdir, f'mrconvert_{version_string}')
-            maskdir = op.join(scratchdir, f'mask_mrconvert_{version_string}')
-            dwi2tensordir = op.join(scratchdir, f'dwi2tensor_from_mrconvert_{version_string}')
-            run_dwi2tensor(mrconvertdir, extensions, maskdir, dwi2tensordir)
+    for extensions, reorient in tqdm(itertools.product(EXTENSIONS, (False, True)),
+                                     desc='Running MRtrix3 dwi2tensor on MRtrix3 mrconvert outputs',
+                                     total=len(EXTENSIONS)*2):
+        version_string = f'dcm2{"".join(extensions)}{reorient}'
+        mrconvertdir = op.join(scratchdir, f'mrconvert_{version_string}')
+        maskdir = op.join(scratchdir, f'mask_mrconvert_{version_string}')
+        dwi2tensordir = op.join(scratchdir, f'dwi2tensor_from_mrconvert_{version_string}')
+        run_dwi2tensor(mrconvertdir, extensions, maskdir, dwi2tensordir)
 
     dtifitdir = op.join(scratchdir, 'dtifit_from_dcm2niix')
     maskdir = op.join(scratchdir, 'mask_dcm2niix')
     run_dtifit(dcm2niixdir, maskdir, dtifitdir)
-    for reorient in (False, True):
+    for reorient in tqdm((False, True),
+                         desc='Running FSL dtifit on MRtrix3 mrconvert outputs',
+                         total=2):
         mrconvertdir = op.join(scratchdir, f'mrconvert_dcm2niijsonbvecbval{reorient}')
         maskdir = op.join(scratchdir, f'mask_mrconvert_dcm2niijsonbvecbval{reorient}')
         dtifitdir = op.join(scratchdir, f'dtifit_from_mrconvert{reorient}')
@@ -758,7 +762,9 @@ def main():
     conversiondir = op.join(scratchdir, 'dtifit_dcm2niix_to_scannerspace')
     run_dtifit_to_mrtrix(dtifitdir, conversiondir)
     verify_peaks('FSL dtifit from dcm2niix data', conversiondir)
-    for reorient in (False, True):
+    for reorient in tqdm((False, True),
+                         desc='Evaluating FSL dtifit outputs from MRtrix3 mrconvert data',
+                         total=2):
         dtifitdir = op.join(scratchdir, f'dtifit_from_mrconvert{reorient}')
         conversiondir = op.join(scratchdir, f'dtifit_mrconvert{reorient}_to_scannerspace')
         run_dtifit_to_mrtrix(dtifitdir, conversiondir)
@@ -769,7 +775,9 @@ def main():
     bedpostxdir = op.join(scratchdir, 'bedpostx_from_dcm2niix')
     maskdir = op.join(scratchdir, 'mask_dcm2niix')
     run_bedpostx(dcm2niixdir, maskdir, bedpostxdir)
-    for reorient in (False, True):
+    for reorient in tqdm((False, True),
+                         desc='Running FSL bedpostx on MRtrix3 mrconvert outputs',
+                         total=2):
         mrtrixdir = op.join(scratchdir, f'mrconvert_dcm2niijsonbvecbval{reorient}')
         maskdir = op.join(scratchdir, f'mask_mrconvert_dcm2niijsonbvecbval{reorient}')
         bedpostxdir = op.join(scratchdir, f'bedpostx_from_mrconvert{reorient}')
@@ -786,7 +794,9 @@ def main():
     conversiondir = op.join(scratchdir, 'bedpostx_dcm2niix_dyads2peaks')
     run_bedpostx_to_mrtrix(bedpostxdir, conversiondir, True)
     verify_peaks('bedpostx from dcm2niix; 3-vectors', conversiondir)
-    for reorient in (False, True):
+    for reorient in tqdm((False, True),
+                         desc='Evaluating FSL bedpostx outputs from MRtrix3 mrconvert data',
+                         total=2):
         bedpostxdir = op.join(scratchdir, f'bedpostx_from_mrconvert{reorient}')
         conversiondir = op.join(scratchdir, f'bedpostx_mrconvert{reorient}_sph2peaks')
         run_bedpostx_to_mrtrix(bedpostxdir, conversiondir, False)

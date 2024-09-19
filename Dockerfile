@@ -18,21 +18,26 @@ RUN apt-get -qq update \
 
 FROM mrtrix3-builder AS mrtrix3-eval-builder
 # Version of MRtrix3 to be evaluated
-ARG MRTRIX3_GIT_COMMITISH="master"
+# This is branch "dwi_metadata_master" as at 2024-09-19
+ARG MRTRIX3_GIT_COMMITISH="01a09b8985568b52ad81fd1a499c3feab872881b"
+#ARG MRTRIX3_GIT_COMMITISH="dwi_metadata_master"
 # Command-line arguments for `./configure`
 ARG MRTRIX3_CONFIGURE_FLAGS="-nogui"
 # Command-line arguments for `./build`
 ARG MRTRIX3_BUILD_FLAGS="-persistent -nopaginate"
 ARG MAKE_JOBS
 WORKDIR /opt/mrtrix3
-RUN git clone -b $MRTRIX3_GIT_COMMITISH --depth 1 https://github.com/MRtrix3/mrtrix3.git . \
+# Can't use --depth 1 if the target is a commit rather than a tag / branch
+RUN git clone  https://github.com/MRtrix3/mrtrix3.git . \
+    && git checkout $MRTRIX3_GIT_COMMITISH \
     && python3 ./configure $MRTRIX3_CONFIGURE_FLAGS \
     && NUMBER_OF_PROCESSORS=$MAKE_JOBS python3 ./build $MRTRIX3_BUILD_FLAGS \
     && rm -rf tmp
 
 # Additional version of MRtrix3 that includes additional features for fibre orientation evaluation
 FROM mrtrix3-builder AS mrtrix3-peakscmds-builder
-ARG MRTRIX3_GIT_COMMITISH="new_peaks_cmds"
+# This is branch "new_peaks_cmds" as at 2024-09-19
+ARG MRTRIX3_GIT_COMMITISH="22178a1f3122118cce70581e7e05a1f256e10fd3"
 ARG MRTRIX3_CONFIGURE_FLAGS="-DMRTRIX_BUILD_GUI=OFF"
 # Can't specify "peakscheck" as a target since no such target is constructed for cmake
 ARG MRTRIX3_BUILD_TARGETS="peaksconvert LinkPythonAPIFiles LinkPythonCommandFiles"
@@ -47,12 +52,12 @@ RUN apt-get -qq update \
 # Possible solution: Don't do a shallow clone
 # Not finding NIfTI headers?
 # - Can't do targeted build as third-party files are then not pulled
-RUN git clone -b $MRTRIX3_GIT_COMMITISH https://github.com/MRtrix3/mrtrix3.git . \
+RUN git clone https://github.com/MRtrix3/mrtrix3.git . \
+    && git checkout $MRTRIX3_GIT_COMMITISH \
     && cmake -Bbuild -GNinja $MRTRIX3_CONFIGURE_FLAGS \
     && cmake --build build -j $MAKE_JOBS \
     && find build/bin/ -type f ! -name 'peaks*' -delete \
-    && find build/bin/ -type f -name "peaks2*" -delete \
-    && echo "Rebuilt new_peaks_cmds"
+    && find build/bin/ -type f -name "peaks2*" -delete
 
 # Install dcm2niix
 FROM base-builder AS dcm2niix-builder

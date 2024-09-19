@@ -70,7 +70,7 @@ DIRECTION_CODES_BIDS = {'i-': [-1, 0, 0],
 # TODO Make this a dictionary; give these lists names
 EXTENSIONS = (['nii', 'json', 'bvec', 'bval'],
               ['mih'],
-              ['mif', 'json'])
+              ['mif', 'json', 'grad'])
 # Make sure we get complex non-standard strides that are both LHS and RHS coordinate systems
 STRIDES = {'unmodified': None,
            'RAS': '+1,+2,+3,+4',
@@ -197,6 +197,8 @@ def run_mrconvert_from_dicom(indir, outdir, extensions, reorient):
             cmd.extend(['-json_export', op.join(outdir, f'{v}.json')])
         if 'bvec' in extensions and 'bval' in extensions:
             cmd.extend(['-export_grad_fsl', op.join(outdir, f'{v}.bvec'), op.join(outdir, f'{v}.bval')])
+        if 'grad' in extensions:
+            cmd.extend(['-export_grad_mrtrix', op.join(outdir, f'{v}.grad')])
         subprocess.run(cmd, check=True)
 
 
@@ -225,10 +227,14 @@ def run_mrconvert_from_intermediate(indir,
             cmd.extend(['-json_import', op.join(indir, f'{v}.json')])
         if 'bvec' in extensions_in and 'bval' in extensions_in:
             cmd.extend(['-fslgrad', op.join(indir, f'{v}.bvec'), op.join(indir, f'{v}.bval')])
+        if 'grad' in extensions_in:
+            cmd.extend(['-grad', op.join(indir, f'{v}.grad')])
         if 'json' in extensions_out:
             cmd.extend(['-json_export', op.join(outdir, f'{v}.json')])
         if 'bvec' in extensions_out and 'bval' in extensions_out:
             cmd.extend(['-export_grad_fsl', op.join(outdir, f'{v}.bvec'), op.join(outdir, f'{v}.bval')])
+        if 'grad' in extensions_out:
+            cmd.extend(['-export_grad_mrtrix', op.join(outdir, f'{v}.grad')])
         if strides_option:
             cmd.extend(['-strides', strides_option])
         subprocess.run(cmd, check=True)
@@ -481,12 +487,16 @@ def verify_metadata(testname, inputdir, file_extensions):
     logger.debug(f'Verifying metadata for {testname}:')
     for v in tqdm(variants, desc=f'Verifying metadata for {testname}'):
         logger.debug(f'  Variant {v}:')
+        bvecs = None
+        dw_scheme = None
         if 'json' in file_extensions:
             with open(op.join(inputdir, f'{v}.json'), 'r') as f:
                 metadata = json.loads(f.read())
             slicetimingreversal_metadata = metadata['SliceTiming'][0] > metadata['SliceTiming'][-1]
             transform = get_transform(op.join(inputdir, f'{v}.{file_extensions[0]}'))
-            dw_scheme = metadata.get('dw_scheme', None)
+            assert 'dw_scheme' not in metadata
+#            if dw_scheme in metadata:
+#                dw_scheme = [ map(float, line.split()) for line in metadata['dw_scheme'] ]
         else:
             assert file_extensions == ['mih']
             metadata = {}
@@ -508,14 +518,25 @@ def verify_metadata(testname, inputdir, file_extensions):
             slicetiming_metadata = [float(f) for f in metadata['SliceTiming'].split(',')]
             slicetimingreversal_metadata = slicetiming_metadata[0] > slicetiming_metadata[-1]
             transform = [ [int(round(float(f))) for f in line.split(',')] for line in metadata['transform'] ]
-        if 'nii' in file_extensions:
+            dw_scheme = [ list(map(float, line.split(','))) for line in metadata['dw_scheme'] ]
+        if 'grad' in file_extensions:
+            assert 'dw_scheme' not in metadata
+            dw_scheme = []
+            with open(op.join(inputdir, f'{v}.grad'), 'r') as f:
+                for line in f.readlines():
+                    if line.startswith('#'):
+                        continue
+                    dw_scheme.append(line)
+            dw_scheme = [ list(map(float, line.split())) for line in dw_scheme ]
+            assert all(len(line) == 4 for line in dw_scheme)
+        elif 'bvec' in file_extensions:
             with open(op.join(inputdir, f'{v}.bvec'), 'r') as f:
-                bvecs = [[float(value) for value in line.split(' ')] for line in f.readlines()]
-            dw_scheme = None
-        else:
-            bvecs = None
-            if 'mih' in file_extensions:
-                dw_scheme = [ [float(f) for f in line.split(',')] for line in metadata['dw_scheme'] ]
+                bvecs = [ list(map(float, line.split(' '))) for line in f.readlines()]
+            assert len(bvecs) == 3
+            assert len(bvecs[1]) == len(bvecs[0]) and len(bvecs[2]) == len(bvecs[0])
+
+        assert bvecs or dw_scheme
+        assert not (bvecs is not None and dw_scheme is not None)
 
         # Slice encoding direction not explicitly labelled in dcm2niix JSON;
         #   therefore if absent we'll have to assume "k"
@@ -556,7 +577,6 @@ def verify_metadata(testname, inputdir, file_extensions):
             if not np.array_equal(fiducials, GRADTABLE_FIDUCIALS):
                 gradtable_errors.append([f'{v}', fiducials])
         else:
-            assert bvecs
             # Figure out how to validate bvecs
             # Ideally do this based on description of the format,
             #   rather than relying on MRtrix3 commands,
@@ -663,7 +683,7 @@ def main():
     # Evaluate dcm2niix
     dcm2niixdir = op.join(scratchdir, 'dcm2niix')
     run_dcm2niix(dicomdir, os.path.abspath(dcm2niixdir))
-    verify_metadata('dcm2niix', dcm2niixdir, ('nii', 'json'))
+    verify_metadata('dcm2niix', dcm2niixdir, ('nii', 'json', 'bvec', 'bval'))
 
     # Evaluate MRtrix conversion from DICOM to various formats
     for extensions, reorient in tqdm(itertools.product(EXTENSIONS, (False, True)), 

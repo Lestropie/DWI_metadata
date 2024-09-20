@@ -4,10 +4,29 @@ A software tool for verifying appropriate software handling of DWI metadata
 
 *Under development*
 
-The `execute.py` script currently expects all relevant commands to be present in `PATH`.
+## Running the tests
+
+A Docker image is now provided that embeds all requisite functionalities and data.
+This can be done via eg.:
+```ShellSession
+docker build . -t dwi_metadata:latest
+mkdir scratch
+docker run -it --rm -v $(pwd)/scratch:/scratch /main.py /data /scratch /scratch/log.log
+```
+
+The `main.py` script currently expects all relevant commands to be present in `PATH`.
 This includes the `peakscheck` and `peaksconvert` commands proposed for *MRtrix3*,
 which currently necessitates installation of the following branch:
 https://github.com/MRtrix3/mrtrix3/pull/2918
+
+## Software dependencies
+
+-   `dcm2niix`
+-   FSL
+-   MRtrix3:
+    -   A version for evaluation that is derived from `3.0.4`, intended to be included in `3.0.5`
+    -   A development version that includes two crucial new commands for evaluation of fibre orientations:
+        https://github.com/MRtrix3/mrtrix3/pull/2918
 
 ## Input data
 
@@ -32,7 +51,7 @@ this is *not* equivalent to the Right-Anterior-Superior (RAS) convention used in
 
 ### DICOM data
 
-The DICOM data that must be downloaded and provided as input to the `execute.py` script can also be found at:
+The DICOM data included in the Docker image can be found at:
 
 https://osf.io/p96tj/
 
@@ -109,7 +128,7 @@ Every test involves verification of all 24 DICOM series.
     -   Validations 1, 2, 3, 4 (depending on image / file format)
 
 -   FSL:
-    
+
     -   Software sources:
         -   `dcm2niix`
         -   *MRtrix3* `mrconvert`

@@ -136,13 +136,15 @@ COPY --from=mrtrix3-peakscmds-builder /opt/peakscmds /opt/peakscmds
 COPY --from=dcm2niix-builder /opt/dcm2niix /opt/dcm2niix
 COPY --from=fsl-installer /opt/fsl /opt/fsl
 COPY --from=data-downloader /data /data
-COPY execute.py /execute.py
+COPY main.py /main.py
+COPY dwi_metadata/ /dwi_metadata
 
 ENV FSLDIR="/opt/fsl" \
     FSLOUTPUTTYPE="NIFTI_GZ" \
     FSLMULTIFILEQUIT="TRUE" \
     FSLTCLSH="/opt/fsl/bin/fsltclsh" \
     FSLWISH="/opt/fsl/bin/fslwish" \
-    PATH="/opt/mrtrix3/bin:/opt/peakscmds/build/bin:/opt/dcm2niix/build/bin:/opt/fsl/share/fsl/bin:$PATH"
+    PATH="/opt/mrtrix3/bin:/opt/peakscmds/build/bin:/opt/dcm2niix/build/bin:/opt/fsl/share/fsl/bin:$PATH" \
+    PYTHONPATH="/dwi_metadata"
 
-CMD ["/execute.py", "/data"]
+CMD ["/main.py"]

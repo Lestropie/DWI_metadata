@@ -40,7 +40,7 @@ def test_bedpostx(scratchdir):
         conversiondir = op.join(scratchdir, f'bedpostx_from_{op.basename(inputdir)}_sph2peaks')
         bedpostx.convert(bedpostxdir, conversiondir, False)
         tests.peaks(f'bedpostx from {inputname}; spherical coordinates', conversiondir, maskdir, 'nii')
-        conversiondir = op.join(scratchdir, f'bedpostx_from_{testname}_dyads2peaks')
+        conversiondir = op.join(scratchdir, f'bedpostx_from_{op.basename(inputdir)}_dyads2peaks')
         bedpostx.convert(bedpostxdir, conversiondir, True)
         tests.peaks(f'bedpostx from {inputname}; 3-vectors', conversiondir, maskdir, 'nii')
     execute('dcm2niix',

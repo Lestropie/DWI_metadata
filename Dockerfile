@@ -144,7 +144,6 @@ ENV FSLDIR="/opt/fsl" \
     FSLMULTIFILEQUIT="TRUE" \
     FSLTCLSH="/opt/fsl/bin/fsltclsh" \
     FSLWISH="/opt/fsl/bin/fslwish" \
-    PATH="/opt/mrtrix3/bin:/opt/peakscmds/build/bin:/opt/dcm2niix/build/bin:/opt/fsl/share/fsl/bin:$PATH" \
-    PYTHONPATH="/dwi_metadata"
+    PATH="/opt/mrtrix3/bin:/opt/peakscmds/build/bin:/opt/dcm2niix/build/bin:/opt/fsl/share/fsl/bin:$PATH"
 
 CMD ["/main.py"]

@@ -3,6 +3,7 @@
 import json
 import logging
 import numpy as np
+import os
 from os import path as op
 import subprocess
 from tqdm import tqdm
@@ -178,13 +179,21 @@ def metadata(testname, inputdir, file_extensions):
 
 
 
-def peaks(testname, inputdir):
+def peaks(testname, inputdir, maskdir, mask_extension):
     errors = []
     logger.info(f'Verifying peak orientations for {testname}')
     for v in tqdm(VARIANTS, desc=f'Verifying peak orientations for {testname}', leave=False):
         logger.debug(f'  Variant {v}')
-        proc = subprocess.run(['peakscheck', op.join(inputdir, f'{v}.mif'), '-quiet'],
+        maskpath = op.join(maskdir, 'temp.mif')
+        proc = subprocess.run(['maskfilter', op.join(maskdir, f'{v}.{mask_extension}'), 'erode', maskpath,
+                               '-npass', '2',
+                               '-config', 'RealignTransform', 'False',
+                               '-quiet'])
+        proc = subprocess.run(['peakscheck', op.join(inputdir, f'{v}.mif'),
+                               '-mask', maskpath,
+                               '-quiet'],
                               capture_output=True)
+        os.remove(maskpath)
         if proc.returncode != 0:
             errors.append(f'{v}')
     if errors:

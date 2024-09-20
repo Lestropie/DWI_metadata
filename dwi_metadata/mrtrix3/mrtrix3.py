@@ -107,21 +107,24 @@ def convert_mask(dcm2niixdir, maskpath, scratchdir):
 
 
 
-def test_dwi2tensor(dcm2niixdir, scratchdir):
-    dwi2tensor.run(dcm2niixdir,
+def test_dwi2tensor(scratchdir):
+    dwi2tensor.run(op.join(scratchdir, 'dcm2niix'),
                    ['nii', 'json', 'bvec', 'bval'],
                    op.join(scratchdir, 'mask_dcm2niix'),
                    op.join(scratchdir, 'dwi2tensor_from_dcm2niix'))
     tests.peaks(f'MRtrix3 dwi2tensor from dcm2niix',
-                op.join(scratchdir, 'dwi2tensor_from_dcm2niix'))
+                op.join(scratchdir, 'dwi2tensor_from_dcm2niix'),
+                op.join(scratchdir, 'mask_dcm2niix'),
+                'nii')
     for extensions, reorient in tqdm(itertools.product(EXTENSIONS, (False, True)),
                                      desc='Running MRtrix3 dwi2tensor on MRtrix3 mrconvert outputs',
                                      total=len(EXTENSIONS)*2):
         version_string = f'dcm2{"".join(extensions)}{reorient}'
         outdir = op.join(scratchdir, f'dwi2tensor_from_mrconvert_{version_string}')
+        maskdir = op.join(scratchdir, f'mask_mrconvert_{version_string}')
         dwi2tensor.run(op.join(scratchdir, f'mrconvert_{version_string}'),
                        extensions,
-                       op.join(scratchdir, f'mask_mrconvert_{version_string}'),
+                       maskdir,
                        outdir)
-        tests.peaks(f'MRtrix3 dwi2tensor from mrconvert {version_string}', outdir)
+        tests.peaks(f'MRtrix3 dwi2tensor from mrconvert {version_string}', outdir, maskdir, extensions[0])
 

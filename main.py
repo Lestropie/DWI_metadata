@@ -1,19 +1,10 @@
 #!/usr/bin/python3
 
-import copy
-import glob
-import itertools
-import json
 import logging
 import numpy as np
 import os
 import os.path as op
-import shutil
-import subprocess
 import sys
-from tqdm import tqdm
-
-from collections import namedtuple
 
 from dwi_metadata import EXTENSIONS
 from dwi_metadata import VARIANTS
@@ -86,7 +77,7 @@ def main():
     mrtrix3.convert_mask(dcm2niixdir, maskpath, scratchdir)
 
     # Run tensor fit using MRtrix3
-    mrtrix3.test_dwi2tensor(dcm2niixdir, scratchdir)
+    mrtrix3.test_dwi2tensor(scratchdir)
 
     # FSL dtifit
     fsl.test_dtifit(scratchdir)  

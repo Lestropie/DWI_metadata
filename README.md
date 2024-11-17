@@ -11,13 +11,14 @@ This can be done via eg.:
 ```ShellSession
 docker build . -t dwi_metadata:latest
 mkdir scratch
-docker run -it --rm -v $(pwd)/scratch:/scratch /main.py /data /scratch /scratch/log.log
+docker run -it --rm -v $(pwd)/scratch:/scratch dwi_metadata:latest /data /scratch /scratch/log.log
 ```
 
-The `main.py` script currently expects all relevant commands to be present in `PATH`.
+The execution scripts expect all relevant commands to be present in `PATH`.
 This includes the `peakscheck` and `peaksconvert` commands proposed for *MRtrix3*,
 which currently necessitates installation of the following branch:
-https://github.com/MRtrix3/mrtrix3/pull/2918
+https://github.com/MRtrix3/mrtrix3/pull/2918.
+The container environment ensures that this is all set up as required.
 
 ## Software dependencies
 

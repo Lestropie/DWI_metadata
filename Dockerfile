@@ -18,8 +18,8 @@ RUN apt-get -qq update \
 
 FROM mrtrix3-builder AS mrtrix3-eval-builder
 # Version of MRtrix3 to be evaluated
-# This is branch "dwi_metadata_master" as at 2024-09-19
-ARG MRTRIX3_GIT_COMMITISH="01a09b8985568b52ad81fd1a499c3feab872881b"
+# This is branch "dwi_metadata_master" as at 2024-11-16
+ARG MRTRIX3_GIT_COMMITISH="fc0e8f144b161a594eda733ebc9cb4eb6b72e8cb"
 #ARG MRTRIX3_GIT_COMMITISH="dwi_metadata_master"
 # Command-line arguments for `./configure`
 ARG MRTRIX3_CONFIGURE_FLAGS="-nogui"
@@ -146,4 +146,5 @@ ENV FSLDIR="/opt/fsl" \
     FSLWISH="/opt/fsl/bin/fslwish" \
     PATH="/opt/mrtrix3/bin:/opt/peakscmds/build/bin:/opt/dcm2niix/build/bin:/opt/fsl/share/fsl/bin:$PATH"
 
-CMD ["/main.py"]
+ENTRYPOINT ["/main.py"]
+

@@ -179,7 +179,7 @@ def metadata(testname, inputdir, file_extensions):
 
 
 
-def peaks(testname, inputdir, maskdir, mask_extension):
+def peaks(testname, inputdir, maskdir, image_extension, mask_extension):
     errors = []
     logger.info(f'Verifying peak orientations for {testname}')
     for v in tqdm(VARIANTS, desc=f'Verifying peak orientations for {testname}', leave=False):
@@ -189,7 +189,7 @@ def peaks(testname, inputdir, maskdir, mask_extension):
                                '-npass', '2',
                                '-config', 'RealignTransform', 'False',
                                '-quiet'])
-        proc = subprocess.run(['peakscheck', op.join(inputdir, f'{v}.mif'),
+        proc = subprocess.run(['peakscheck', op.join(inputdir, f'{v}.{image_extension}'),
                                '-mask', maskpath,
                                '-quiet'],
                               capture_output=True)

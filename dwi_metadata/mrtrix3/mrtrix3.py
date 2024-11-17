@@ -115,6 +115,7 @@ def test_dwi2tensor(scratchdir):
     tests.peaks(f'MRtrix3 dwi2tensor from dcm2niix',
                 op.join(scratchdir, 'dwi2tensor_from_dcm2niix'),
                 op.join(scratchdir, 'mask_dcm2niix'),
+                'nii',
                 'nii')
     for extensions, reorient in tqdm(itertools.product(EXTENSIONS, (False, True)),
                                      desc='Running MRtrix3 dwi2tensor on MRtrix3 mrconvert outputs',
@@ -126,5 +127,9 @@ def test_dwi2tensor(scratchdir):
                        extensions,
                        maskdir,
                        outdir)
-        tests.peaks(f'MRtrix3 dwi2tensor from mrconvert {version_string}', outdir, maskdir, extensions[0])
+        tests.peaks(f'MRtrix3 dwi2tensor from mrconvert {version_string}',
+                    outdir,
+                    maskdir,
+                    extensions[0],
+                    extensions[0])
 

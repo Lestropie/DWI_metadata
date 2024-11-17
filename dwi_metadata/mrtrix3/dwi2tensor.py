@@ -32,7 +32,7 @@ def run(indir, extensions, maskdir, dwi2tensordir):
                        + grad_option,
                        check=True)
         subprocess.run(['tensor2metric', tensor_image_path,
-                        '-vector', op.join(dwi2tensordir, f'{v}_vector.{extensions[0]}'),
+                        '-vector', op.join(dwi2tensordir, f'{v}.{extensions[0]}'),
                         '-mask', mask_path,
                         '-modulate', 'fa',
                         '-quiet'],

@@ -18,9 +18,9 @@ RUN apt-get -qq update \
 
 FROM mrtrix3-builder AS mrtrix3-eval-builder
 # Version of MRtrix3 to be evaluated
-# This is branch "dwi_metadata_master" as at 2024-11-16
-ARG MRTRIX3_GIT_COMMITISH="fc0e8f144b161a594eda733ebc9cb4eb6b72e8cb"
-#ARG MRTRIX3_GIT_COMMITISH="dwi_metadata_master"
+# Software updates applied to MRtrix3 to fix handling of orientation-dependent metadata
+#   was integrated into the 3.0.5 update
+ARG MRTRIX3_GIT_COMMITISH="3.0.5"
 # Command-line arguments for `./configure`
 ARG MRTRIX3_CONFIGURE_FLAGS="-nogui"
 # Command-line arguments for `./build`
@@ -48,6 +48,10 @@ RUN apt-get -qq update \
     cmake \
     ninja-build \
     && rm -rf /var/lib/apt/lists/*
+# TODO See if this fixes:
+#   "error: RPC failed; curl 92 HTTP/2 stream 5 was not closed cleanly: CANCEL (err 8)"
+RUN git config --global http.version HTTP/1.1 \
+    && git config --global http.postBuffer 524288000
 # TODO Still getting the "MRtrix3 base version does not match git tag" issue
 # Possible solution: Don't do a shallow clone
 # Not finding NIfTI headers?
@@ -99,8 +103,12 @@ RUN apt-get -qq update \
         sudo \
         wget \
     && rm -rf /var/lib/apt/lists/*
+# TODO Remove fix once FSL installer checksum fix arrives
 RUN wget https://fsl.fmrib.ox.ac.uk/fsldownloads/fslinstaller.py \
+    && sed -i '/    if checksum:/c\    if False:' fslinstaller.py \
     && python3 fslinstaller.py -V 6.0.7.7 -d /opt/fsl -m -o
+#RUN wget https://fsl.fmrib.ox.ac.uk/fsldownloads/fslinstaller.py \
+#    && python3 fslinstaller.py -V 6.0.7.7 -d /opt/fsl -m -o
 
 # Download data
 FROM base-builder AS data-downloader

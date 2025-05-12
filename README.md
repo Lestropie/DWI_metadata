@@ -4,6 +4,14 @@ A software tool for verifying appropriate software handling of DWI metadata
 
 *Under development*
 
+The tests performed by this tool were used to implement and verify
+multiple changes to the *MRtrix3* software
+that are now included in version `3.0.5` of that software:
+
+-   Software release: https://github.com/MRtrix3/mrtrix3/releases/tag/3.0.5
+-   Pull Request: https://github.com/MRtrix3/mrtrix3/pull/3011
+-   Mention in changelog: https://community.mrtrix.org/t/mrtrix-3-0-5-release/8351/2#p-24881-multiple-commands-6
+
 ## Running the tests
 
 A Docker image is now provided that embeds all requisite functionalities and data.
@@ -25,7 +33,7 @@ The container environment ensures that this is all set up as required.
 -   `dcm2niix`
 -   FSL
 -   MRtrix3:
-    -   A version for evaluation that is derived from `3.0.4`, intended to be included in `3.0.5`
+    -   Version `3.0.5`
     -   A development version that includes two crucial new commands for evaluation of fibre orientations:
         https://github.com/MRtrix3/mrtrix3/pull/2918
 

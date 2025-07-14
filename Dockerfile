@@ -18,9 +18,10 @@ RUN apt-get -qq update \
 
 FROM mrtrix3-builder AS mrtrix3-eval-builder
 # Version of MRtrix3 to be evaluated
-# Software updates applied to MRtrix3 to fix handling of orientation-dependent metadata
-#   was integrated into the 3.0.5 update
-ARG MRTRIX3_GIT_COMMITISH="3.0.5"
+# Further software updates applied to MRtrix3 to fix handling of orientation-dependent metadata,
+#   in particular external phase encoding tables,
+#   from: https://github.com/MRtrix3/mrtrix3/pull/3128
+ARG MRTRIX3_GIT_COMMITISH="fac8009ee91df38e145936365b903a8c7dc61c09"
 # Command-line arguments for `./configure`
 ARG MRTRIX3_CONFIGURE_FLAGS="-nogui"
 # Command-line arguments for `./build`

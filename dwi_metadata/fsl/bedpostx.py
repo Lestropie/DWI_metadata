@@ -8,7 +8,7 @@ import shutil
 import subprocess
 from tqdm import tqdm
 
-from .. import VARIANTS
+from .. import ACQUISITIONS
 
 logger = logging.getLogger(__name__)
 
@@ -30,13 +30,13 @@ def run(indir, maskdir, bedpostxdir):
     cwd = os.getcwd()
     logger.info(f'Running FSL bedpostx from input {indir}')
     os.chdir(bedpostxdir)
-    for v in tqdm(VARIANTS, desc=f'Running FSL bedpostx on input {indir}'):
-        bedpostx_tmpdir = f'{v}/'
+    for acq in tqdm(ACQUISITIONS, desc=f'Running FSL bedpostx on input {indir}'):
+        bedpostx_tmpdir = f'{acq}/'
         os.makedirs(bedpostx_tmpdir)
-        os.symlink(op.join(indir, f'{v}.nii'), op.join(bedpostx_tmpdir, 'data.nii'))
-        os.symlink(op.join(indir, f'{v}.bvec'), op.join(bedpostx_tmpdir, 'bvecs'))
-        os.symlink(op.join(indir, f'{v}.bval'), op.join(bedpostx_tmpdir, 'bvals'))
-        os.symlink(op.join(maskdir, f'{v}.nii'), op.join(bedpostx_tmpdir, 'nodif_brain_mask.nii'))
+        os.symlink(op.join(indir, f'{acq}.nii'), op.join(bedpostx_tmpdir, 'data.nii'))
+        os.symlink(op.join(indir, f'{acq}.bvec'), op.join(bedpostx_tmpdir, 'bvecs'))
+        os.symlink(op.join(indir, f'{acq}.bval'), op.join(bedpostx_tmpdir, 'bvals'))
+        os.symlink(op.join(maskdir, f'{acq}.nii'), op.join(bedpostx_tmpdir, 'nodif_brain_mask.nii'))
         subprocess.run(['bedpostx', bedpostx_tmpdir] + OPTIONS,
                        capture_output=True,
                        check=True)
@@ -53,8 +53,8 @@ def convert(bedpostxdir, conversiondir, use_dyads):
         pass
     os.makedirs(conversiondir)
     logger.info(f'Converting {bedpostxdir} to MRtrix3 format')
-    for v in tqdm(VARIANTS, desc=f'Converting FSL {bedpostxdir} to MRtrix3 format'):
-        bedpostx_subdir = os.path.join(bedpostxdir, f'{v}.bedpostX')
+    for acq in tqdm(ACQUISITIONS, desc=f'Converting FSL {bedpostxdir} to MRtrix3 format'):
+        bedpostx_subdir = os.path.join(bedpostxdir, f'{acq}.bedpostX')
         tmppath = op.join(conversiondir, 'tmp.mif')
         if use_dyads:
             for index in range(1, 4):
@@ -79,7 +79,7 @@ def convert(bedpostxdir, conversiondir, use_dyads):
                 os.remove(op.join(conversiondir, f'tmp{index}.mif'))
             subprocess.run(['peaksconvert',
                             tmppath,
-                            op.join(conversiondir, f'{v}.mif'),
+                            op.join(conversiondir, f'{acq}.mif'),
                             '-in_format', '3vector',
                             '-in_reference', 'bvec',
                             '-out_format', '3vector',
@@ -106,7 +106,7 @@ def convert(bedpostxdir, conversiondir, use_dyads):
                            check=True)
             subprocess.run(['peaksconvert',
                             tmppath,
-                            op.join(conversiondir, f'{v}.mif'),
+                            op.join(conversiondir, f'{acq}.mif'),
                             '-in_format', 'spherical',
                             '-in_reference', 'bvec',
                             '-out_format', '3vector',

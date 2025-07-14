@@ -1,5 +1,7 @@
 #!/usr/bin/python3
 
+from dataclasses import dataclass
+from enum import Enum
 import itertools
 import numpy as np
 
@@ -44,22 +46,39 @@ DIRECTION_CODES_BIDS = {'i-': [-1, 0, 0],
                         'k-': [ 0, 0,-1],
                         'k':  [ 0, 0, 1]}
 
-# The ".mih" case is used to test where metadata is embedded in the image header;
-#   by using .mih rather than .mif, the raw text data can be read rather than using MRtrix3 commands
-EXTENSIONS = (['nii', 'json', 'bvec', 'bval'],
-              ['mih'],
-              ['mif', 'json', 'grad'])
 
-# Generate set of all possible configurations
-class Variant:
+GradType = Enum('GradType', 'header fsl b none')
+KeyvalueType = Enum('KeyvalueType', 'header json none')
+PEType = Enum('PEType', 'header json table topup eddy none')
+
+@dataclass
+class FileFormat:
+    description: str
+    symbolic_name: str
+    image_extension: str
+    grad_type: GradType
+    keyvalue_type: KeyvalueType
+    pe_type: PEType
+
+FILE_FORMATS = [
+    FileFormat('NIfTI w. bvecs/bvals and JSON', 'niibvecbvaljson', 'nii', GradType.fsl, KeyvalueType.json, PEType.json),
+    FileFormat('NIfTI w. FSL eddy phase-encoding files', 'niieddy', 'nii', GradType.none, KeyvalueType.none, PEType.eddy),
+    FileFormat('NIfTI w. full topup phase-encoding table', 'niitopup', 'nii', GradType.none, KeyvalueType.none, PEType.topup),
+    FileFormat('MIH format w. all read from header', 'mih', 'mih', GradType.header, KeyvalueType.header, PEType.header),
+    FileFormat('MIF format w. external metadata', 'mifjsongrad', 'mif', GradType.b, KeyvalueType.json, PEType.json),
+    FileFormat('MIF format w. external phase encoding table', 'mifpetable', 'mif', GradType.none, KeyvalueType.none, PEType.table),
+]
+
+# Generate set of all acquired series
+class Acquisition:
     def __init__(self, plane, sliceorder, pedir):
         self.plane = plane
         self.sliceorder = sliceorder
         self.pedir = pedir
     def __format__(self, fmt):
         return f'DWI_{self.plane}_{self.sliceorder}_{self.pedir}'
-VARIANTS = []
+ACQUISITIONS = []
 for plane, pedir, sliceorder in itertools.product(PLANES, PEDIRS, SLICEORDERS):
     if not any(bool(a) and bool(b) for a, b in zip(PLANES[plane], PEDIRS[pedir])):
-        VARIANTS.append(Variant(plane, sliceorder, pedir))
+        ACQUISITIONS.append(Acquisition(plane, sliceorder, pedir))
 

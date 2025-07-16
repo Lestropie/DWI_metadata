@@ -110,11 +110,11 @@ def test_preproc(dicomdir, scratchdir):
     logger.info(f'Check applytopup images: mrview {scratchdir}/applytopup/*/applytopup.mif')
 
     # TODO Require further work before eddy tests can run in reasonable time
-    #os.makedirs(op.join(scratchdir, 'eddy'))
-    #for stride_name, stride_list in tqdm(FSLPREPROC_STRIDES.items(), desc='Testing FSL eddy'):
-    #    topupdir = op.join(scratchdir, 'topup', stride_name)
-    #    eddydir = op.join(scratchdir, 'eddy', stride_name)
-    #    os.makedirs(eddydir)
-    #    eddy.run(dicomdir, topupdir, eddydir, op.join(scratchdir, 'mask.nii'), stride_list)
-    #logger.info(f'Check eddy images: {scratchdir}/eddy/*')
+    os.makedirs(op.join(scratchdir, 'eddy'))
+    for stride_name, stride_list in tqdm(FSLPREPROC_STRIDES.items(), desc='Testing FSL eddy'):
+        topupdir = op.join(scratchdir, 'topup', stride_name)
+        eddydir = op.join(scratchdir, 'eddy', stride_name)
+        os.makedirs(eddydir)
+        eddy.run(dicomdir, topupdir, eddydir, op.join(scratchdir, 'mask.nii'), stride_list)
+    logger.info(f'Check eddy images: {scratchdir}/eddy/*')
 

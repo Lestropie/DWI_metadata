@@ -1,10 +1,13 @@
 #!/usr/bin/python3
 
+import os
 from os import path as op
 import subprocess
 from tqdm import tqdm
 
 from dwi_metadata import ACQUISITIONS
+
+TOPUP_CONFIG_PATH = op.join(os.environ['FSLDIR'], 'etc', 'flirtsch', 'b02b0_2.cnf')
 
 
 def run(indir, localdir, strides):
@@ -62,5 +65,6 @@ def run(indir, localdir, strides):
                     f'--datain={concat_petable_path}',
                     f'--out={topup_out_prefix}',
                     f'--fout={topup_field_out}',
-                    f'--iout={topup_image_out}'],
+                    f'--iout={topup_image_out}',
+                    f'--config={TOPUP_CONFIG_PATH}'],
                    check=True)

@@ -17,7 +17,7 @@ def run(dicomdir, topupdir, eddydir, mask_path, strides):
 
     mrcat_image_list = []
 
-    # TODO Concatenating all volumes for all acquisitions takes way too long for eddy to process
+    # Concatenating all volumes for all acquisitions takes way too long for eddy to process
     # Want to derive a set of mrconvert calls that will extract just the first b=0
     #   and a small number of DWIs from each acquisition such that the net DWI coverage
     #   is reasonable but the total number of volumes processed is smaller
@@ -31,18 +31,26 @@ def run(dicomdir, topupdir, eddydir, mask_path, strides):
     #   (16 or 24 depending on whether phase encoding along the third axis is permitted),
     #   pull the lead b=0 and then one or more suitable DWIs
     #   such that each diffusion sensitisation direction appears only once
-
-    # TODO Can eddy deal with volumes with phase encoding along the third axis?
-    #for acq in tqdm([item for item in ACQUISITIONS if item.pedir not in ('HF', 'FH')],
-    for acq in tqdm(ACQUISITIONS,
-                    desc='Conforming DICOM series for concatenation for eddy',
-                    leave=False):
+    shell_indices = subprocess.run(['mrinfo',
+                                    op.join(dicomdir, f'{ACQUISITIONS[0]}'),
+                                    '-shell_indices'],
+                                   capture_output=True,
+                                   check=True).stdout.decode()
+    shell_indices = [list(map(int, shell.split(','))) for shell in shell_indices.strip().split(' ')]
+    num_bnonzero = len(shell_indices[1])
+    first_bnonzero_index = 0
+    num_input_acquisitions = len(list(item for item in ACQUISITIONS if item.pedir not in ('HF', 'FH')))
+    for index, acq in enumerate(item for item in ACQUISITIONS if item.pedir not in ('HF', 'FH')):
+        last_bnonzero_index = num_bnonzero * (index+1) // num_input_acquisitions
+        bnonzero_indices = [shell_indices[1][bnonzero_index] for bnonzero_index in range(first_bnonzero_index, last_bnonzero_index)]
         temp_image_path = op.join(eddydir, f'{acq}.mif')
         subprocess.run(mrconvert_cmd
                        + [op.join(dicomdir, f'{acq}'),
-                          temp_image_path],
+                          temp_image_path,
+                          '-coord', '3', f'0,{",".join(map(str, bnonzero_indices))}'],
                        check=True)
         mrcat_image_list.append(temp_image_path)
+        first_bnonzero_index = last_bnonzero_index
 
     concat_image_path = op.join(eddydir, 'in.mif')
     subprocess.run(['mrcat',
@@ -84,9 +92,10 @@ def run(dicomdir, topupdir, eddydir, mask_path, strides):
                     f'--acqp={eddy_config_path}',
                     f'--bvecs={eddy_bvec_path}',
                     f'--bvals={eddy_bval_path}',
-                    '--mb=2',
+                    #'--mb=2', # Want to do inter-volume motion correction only
                     f'--topup={op.join(topupdir, "out")}',
                     '--flm=linear',
                     #'--interp=linear', # Would be faster, but seems to crash
+                    '--niter=1', # Faster
                     f'--out={op.join(eddydir, "out")}'],
                    check=True)

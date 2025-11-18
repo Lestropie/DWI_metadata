@@ -100,7 +100,7 @@ def run_intermediate(indir,
                 cmd.extend(['-export_pe_table', op.join(outdir, f'{acq}.petable')])
             elif formats_out.pe_type == PEType.topup:
                 cmd.extend(['-export_pe_topup', op.join(outdir, f'{acq}.topup')])
-            elif formats_out.pe_type == PEType.fsl:
+            elif formats_out.pe_type == PEType.eddy:
                 cmd.extend(['-export_pe_eddy', op.join(outdir, f'{acq}.eddycfg'), op.join(outdir, f'{acq}.eddyidx')])
         if strides_option:
             cmd.extend(['-strides', strides_option])

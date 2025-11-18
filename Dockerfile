@@ -21,7 +21,7 @@ FROM mrtrix3-builder AS mrtrix3-eval-builder
 # Further software updates applied to MRtrix3 to fix handling of orientation-dependent metadata,
 #   in particular external phase encoding tables,
 #   from: https://github.com/MRtrix3/mrtrix3/pull/3128
-ARG MRTRIX3_GIT_COMMITISH="fac8009ee91df38e145936365b903a8c7dc61c09"
+ARG MRTRIX3_GIT_COMMITISH="3.0.8"
 # Command-line arguments for `./configure`
 ARG MRTRIX3_CONFIGURE_FLAGS="-nogui"
 # Command-line arguments for `./build`
@@ -156,4 +156,3 @@ ENV FSLDIR="/opt/fsl" \
     PATH="/opt/mrtrix3/bin:/opt/peakscmds/build/bin:/opt/dcm2niix/build/bin:/opt/fsl/share/fsl/bin:$PATH"
 
 ENTRYPOINT ["/main.py"]
-

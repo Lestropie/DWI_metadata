@@ -7,7 +7,7 @@ import shutil
 import subprocess
 from tqdm import tqdm
 
-from .. import VARIANTS
+from .. import ACQUISITIONS
 
 logger = logging.getLogger(__name__)
 
@@ -23,9 +23,9 @@ def run(indir, outdir, outpath):
     os.makedirs(outdir)
     logger.info(f'Running MRtrix3 dwi2mask')
     mrmath_cmd = ['mrmath']
-    for v in tqdm(VARIANTS, desc='Generating homologated brain mask'):
-        out_path = op.join(outdir, f'{v}.mif')
-        subprocess.run(['dwi2mask', op.join(indir, f'{v}/'), out_path,
+    for acq in tqdm(ACQUISITIONS, desc='Generating homologated brain mask'):
+        out_path = op.join(outdir, f'{acq}.mif')
+        subprocess.run(['dwi2mask', op.join(indir, f'{acq}/'), out_path,
                         '-config', 'RealignTransform', 'true',
                         '-quiet'],
                        check=True)
@@ -33,8 +33,8 @@ def run(indir, outdir, outpath):
     mrmath_cmd.extend(['max', outpath, '-datatype', 'bit', '-quiet'])
     subprocess.run(mrmath_cmd, check=True)
     logger.info(f'dwi2mask results aggregated as {outpath}')
-    for v in VARIANTS:
-        os.remove(op.join(outdir, f'{v}.mif'))
+    for acq in ACQUISITIONS:
+        os.remove(op.join(outdir, f'{acq}.mif'))
 
 
 
@@ -48,9 +48,9 @@ def convert(indir, in_extension, maskpath, outdir, out_extension):
     # This is not fixed per variant; it depends on the image to which the mask is to be matched,
     #   and this could depend on the conversion software / whether or not MRtrix3 performed transform realignment
     logger.info(f'Converting aggregate mask to match {indir}')
-    for v in tqdm(VARIANTS, desc=f'Back-propagating homologated brain mask to match {indir}', leave=False):
-        inpath = op.join(indir, f'{v}.{in_extension}')
-        outpath = op.join(outdir, f'{v}.{out_extension}')
+    for acq in tqdm(ACQUISITIONS, desc=f'Back-propagating homologated brain mask to match {indir}', leave=False):
+        inpath = op.join(indir, f'{acq}.{in_extension}')
+        outpath = op.join(outdir, f'{acq}.{out_extension}')
         if not op.exists(inpath):
             raise FileNotFoundError(f'Cannot convert mask for "{inpath}"')
         in_strides = subprocess.run(['mrinfo', inpath,

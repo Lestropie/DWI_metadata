@@ -33,7 +33,7 @@ def get_transform(image_path):
                                 capture_output=True,
                                 text=True).stdout
     if not transform:
-        if op.exists(image_path):
+        if os.path.exists(image_path):
             raise ValueError(f'Unable to read transform from "{image_path}"')
         raise FileNotFoundError(f'No transform read for "{image_path}" as file does not exist')
     try:

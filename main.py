@@ -6,8 +6,9 @@ import os
 import os.path as op
 import sys
 
-from dwi_metadata import EXTENSIONS
-from dwi_metadata import VARIANTS
+#from dwi_metadata import EXTENSIONS
+from dwi_metadata import FILE_FORMATS
+from dwi_metadata import ACQUISITIONS
 from dwi_metadata.dcm2niix import dcm2niix
 from dwi_metadata.fsl import fsl
 from dwi_metadata.mrtrix3 import mrtrix3
@@ -40,10 +41,10 @@ def main():
     console = logging.StreamHandler()
     console.setLevel(logging.WARN)
     logger.addHandler(console)
-    
-    logger.debug('List of variants:')
-    for v in VARIANTS:
-        logger.debug(f'  {v}')
+
+    logger.debug('List of acquisitions:')
+    for acq in ACQUISITIONS:
+        logger.debug(f'  {acq}')
 
     utils.wipe_output_directory(scratchdir)
     try:
@@ -58,6 +59,9 @@ def main():
     # Evaluate MRtrix conversion from DICOM to various formats
     mrtrix3.test_mrconvert_from_dicom(dicomdir, scratchdir)
 
+    # Evaluate conversion to different forms of phase encoding data
+    mrtrix3.test_petables(dicomdir, scratchdir)
+
     # To better separate potential issues between MRtrix3 read and MRtrix3 write,
     #   evaluate conversions from dcm2niix to different formats with different strides
     mrtrix3.test_mrconvert_from_dcm2niix(dcm2niixdir, scratchdir)
@@ -71,7 +75,7 @@ def main():
     mrtrix3.dwi2mask.run(dicomdir,
                          op.join(scratchdir, 'dwi2mask'),
                          maskpath)
-    
+
     # Convert this aggregate brain mask to fit data
     #   with different orientations & obtained through different conversions
     mrtrix3.convert_mask(dcm2niixdir, maskpath, scratchdir)
@@ -79,11 +83,17 @@ def main():
     # Run tensor fit using MRtrix3
     mrtrix3.test_dwi2tensor(scratchdir)
 
+    # Check DWI pre-processing commands: topup, applytopup, eddy
+    # Note: No automated validation, these images need to be verified manually
+    fsl.test_preproc(dicomdir, scratchdir)
+
     # FSL dtifit
-    fsl.test_dtifit(scratchdir)  
+    fsl.test_dtifit(scratchdir)
 
     # FSL bedpostx
     fsl.test_bedpostx(scratchdir)
+
+
 
 
 

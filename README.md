@@ -2,7 +2,8 @@
 
 A software tool for verifying appropriate software handling of DWI metadata
 
-*Under development*
+If referring to this software please cite:
+Smith RE. DWI_metadata. Zenodo DOI: 10.5281/zenodo.21395937
 
 The tests performed by this tool were used to implement and verify
 multiple changes to the *MRtrix3* software
